@@ -1,4 +1,4 @@
-using Aop.RabbitMQ;
+using Aop.Server;
 using Aop.RabbitMQ.TSP;
 using Microsoft.Extensions.FileProviders;
 using System.Text.Json;
@@ -7,8 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<Sender>();
-builder.Services.AddSingleton<Receiver>();
+builder.Services.AddSingleton<TspServer>();
 builder.Services.AddDirectoryBrowser();
 var fileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.ContentRootPath, "Instances"));
 var requestPath = "/instances/list";
@@ -48,11 +47,11 @@ app.MapGet("/allFiles", () =>
     return Results.Ok(allFiles);
 });
 
-app.MapGet("/Send/{file}", (Sender master, string file) =>
+app.MapGet("/Send/{file}", (TspServer server, string file) =>
 {
-    var tspFileReader = new TspFileReader(file);
-    string message = JsonSerializer.Serialize(new TspInput{ Matrix = tspFileReader.ImMatrix });
-    master.SendMessage(message);
+    //var tspFileReader = new TspFileReader(file);
+    //string message = JsonSerializer.Serialize(new TspInput{ Matrix = tspFileReader.ImMatrix });
+    //master.SendMessage(message);
 });
 
 
