@@ -35,7 +35,7 @@ public class Sender<T>
         properties.Persistent = true;
 
         Channel.BasicPublish(exchange: "",
-                             routingKey: "task_queue",
+                             routingKey: typeof(T).Name,
                              basicProperties: properties,
                              body: body);
         Console.WriteLine(" [x] Sent message");
