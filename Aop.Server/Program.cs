@@ -1,13 +1,20 @@
+using Aop.RabbitMQ;
+using Aop.RabbitMQ.TSP;
+using Microsoft.Extensions.FileProviders;
+using System.Text.Json;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton<Sender>();
+builder.Services.AddSingleton<Receiver>();
+builder.Services.AddDirectoryBrowser();
+var fileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.ContentRootPath, "Instances"));
+var requestPath = "/instances/list";
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -16,28 +23,37 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
 
-app.MapGet("/weatherforecast", () =>
+// Enable displaying browser links.
+app.UseStaticFiles(new StaticFileOptions
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateTime.Now.AddDays(index),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    FileProvider = fileProvider,
+    RequestPath = requestPath
+});
+
+app.UseDirectoryBrowser(new DirectoryBrowserOptions
+{
+    FileProvider = fileProvider,
+    RequestPath = requestPath
+});
+
+app.MapGet("/allFiles", () =>
+{
+    string path = Path.Combine(builder.Environment.ContentRootPath, "Instances");
+    var allFiles = Directory.GetFiles(path)
+        .Select(p => p.Replace(path, ""))
+        .Select(p => p.Replace(@"\", ""))
+        .ToList();
+
+    return Results.Ok(allFiles);
+});
+
+app.MapGet("/Send/{file}", (Sender master, string file) =>
+{
+    var tspFileReader = new TspFileReader(file);
+    string message = JsonSerializer.Serialize(new TspInput{ Matrix = tspFileReader.ImMatrix });
+    master.SendMessage(message);
+});
+
 
 app.Run();
-
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

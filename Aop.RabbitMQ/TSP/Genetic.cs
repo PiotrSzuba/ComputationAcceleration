@@ -1,11 +1,6 @@
-﻿using Aop.Client.Extensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Aop.RabbitMQ.Extensions;
 
-namespace Aop.Client.TSP;
+namespace Aop.RabbitMQ.TSP;
 
 public class Genetic : BaseTspClass
 {

@@ -14,4 +14,8 @@
     <ProjectReference Include="..\Aop.RabbitMQ\Aop.RabbitMQ.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Instances\" />
+  </ItemGroup>
+
 </Project>

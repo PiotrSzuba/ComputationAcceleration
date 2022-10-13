@@ -5,16 +5,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aop.Client.TSP;
+namespace Aop.RabbitMQ.TSP;
 
 public class TspInput
 {
     public ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
-
-    public TspInput(ImmutableArray<ImmutableArray<int>> imMatrix)
-    {
-        Matrix = imMatrix;
-    }
 }
 
 public class TspOutput

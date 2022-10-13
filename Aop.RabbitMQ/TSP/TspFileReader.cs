@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
+﻿using System.Collections.Immutable;
 using System.Text;
-using Aop.Client.Extensions;
 
-namespace Aop.Client.TSP;
+namespace Aop.RabbitMQ.TSP;
 
 public class TspFileReader
 {
@@ -24,7 +20,15 @@ public class TspFileReader
         var filePath = GetFullPath(file);
 
         if (!allFiles.Contains(filePath))
-            throw new Exception("File doesnt exists");
+        {
+            Matrix = new List<List<int>>();
+            OptimalValue = -1;
+            Name = "";
+            ImMatrix = CreateImmutableArray(Matrix);
+            return;
+            //throw new Exception("File doesnt exists");
+        }
+
 
         var lines = File.ReadLines(filePath).ToList();
 
@@ -80,7 +84,7 @@ public class TspFileReader
 
     private static int GetNumber(string input)
     {
-        if (Int32.TryParse(input, out int number))
+        if (int.TryParse(input, out int number))
             return number;
         else
             throw new Exception("{input} was not a number!");

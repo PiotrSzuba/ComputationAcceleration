@@ -1,6 +1,6 @@
-﻿using Aop.Client.Extensions;
+﻿using Aop.RabbitMQ.Extensions;
 
-namespace Aop.Client.TSP;
+namespace Aop.RabbitMQ.TSP;
 
 public class Bruteforce : BaseTspClass
 {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Aop.Client.Extensions;
+namespace Aop.RabbitMQ.Extensions;
 
 public static class ListExtensions
 {
