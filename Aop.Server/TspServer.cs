@@ -3,13 +3,18 @@ using Aop.RabbitMQ.TSP;
 using RabbitMQ.Client;
 using System.Diagnostics;
 using System.Text.Json;
+using RabbitMQ.Client.Events;
 
 namespace Aop.Server;
 
 public class TspServer
 {
-    public Sender<TspInput> Sender { get; set; }
-    public Receiver<TspOutput> Receiver { get; set; }
+    private Sender<TspInput> Sender { get; set; }
+    private Receiver<TspOutput> Receiver { get; set; }
+
+    private int ReceivedMessagesCount = 0;
+
+    public bool isRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
 
     public TspServer()
     {
@@ -19,23 +24,48 @@ public class TspServer
 
     public void Run()
     {
-        Console.WriteLine(" [*] Waiting for messages.");
+        var tspFileReader = new TspFileReader("gr96.tsp");
+        var input = new TspInput { Matrix = tspFileReader.ImMatrix };
+        var consumersCount = Sender.GetReceiversCount();
 
-        Receiver.Consumer.Received += (sender, ea) =>
+        if (!isRunning)
         {
-            var tspOutput = Receiver.DeserializeInput(ea);
-            Console.WriteLine($" [x] Received path of len: {tspOutput.BestPath.Count}");
+            Receiver.ReconnectToChannel();
+        }
+
+        Receiver.ClearQueue();
+
+        Console.WriteLine($" [*] Server started amount of hungry consumers: {Sender.GetReceiversCount()}");
+
+        for (int i = 0; i < consumersCount; i++)
+        {
+            Sender.SendMessage(input);
+        }
+
+        Receiver.Consumer.Received += OnReceive;
+
+        Receiver.Channel.BasicConsume(queue: Receiver.QueueName,autoAck: false,consumer: Receiver.Consumer);
+
+        ReceivedMessagesCount = 0;
+    }
+
+    private void OnReceive(object? sender, BasicDeliverEventArgs eventArgs)
+    {
+        var tspOutput = Receiver.DeserializeInput(eventArgs);
+        Console.WriteLine($" [x] Received cost: {tspOutput.Cost}, Received so far: {ReceivedMessagesCount + 1}");
 
 
-            Receiver.Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
 
-            Sender.SendMessage(new TspInput());
-        };
-        Receiver.Channel.BasicConsume(queue: "task_queue",
-                             autoAck: false,
-                             consumer: Receiver.Consumer);
+        Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+        ReceivedMessagesCount++;
 
-        Console.WriteLine(" Press [enter] to exit.");
-        Console.ReadLine();
+        if (ReceivedMessagesCount == 2)
+        {
+            Receiver.Channel.Close();
+            Console.WriteLine("Task completed closing server connection");
+        }
+
+
+        // Sender.SendMessage(new TspInput());
     }
 }

@@ -19,12 +19,14 @@ public class Receiver<T>
     public IModel Channel { get; set; }
     public EventingBasicConsumer Consumer { get; set; }
 
+    public string QueueName => typeof(T).Name;
+
     public Receiver()
     {
         Factory = new ConnectionFactory() { HostName = "localhost" };
         Connection = Factory.CreateConnection();
         Channel = Connection.CreateModel();
-        Channel.QueueDeclare(queue: typeof(T).Name,
+        Channel.QueueDeclare(queue: QueueName,
                      durable: true,
                      exclusive: false,
                      autoDelete: false,
@@ -44,4 +46,18 @@ public class Receiver<T>
 
         return tspInput;
     }
+
+    public void ReconnectToChannel()
+    {
+        Channel = Connection.CreateModel();
+        Channel.QueueDeclare(queue: QueueName,
+                     durable: true,
+                     exclusive: false,
+                     autoDelete: false,
+                     arguments: null);
+        Channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+        Consumer = new EventingBasicConsumer(Channel);
+    }
+
+    public void ClearQueue() => Channel.QueuePurge(QueueName);
 }

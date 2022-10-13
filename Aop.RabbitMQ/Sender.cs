@@ -40,4 +40,6 @@ public class Sender<T>
                              body: body);
         Console.WriteLine(" [x] Sent message");
     }
+
+    public int GetReceiversCount() => (int)Channel.ConsumerCount(typeof(T).Name);
 }
