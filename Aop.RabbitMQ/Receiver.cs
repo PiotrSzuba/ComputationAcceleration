@@ -44,9 +44,4 @@ public class Receiver<T>
 
         return tspInput;
     }
-
-    public TspOutput RunTsp(TspInput tspInput)
-    {
-        return new Genetic(tspInput).Run();
-    }
 }

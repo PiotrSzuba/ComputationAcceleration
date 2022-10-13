@@ -28,7 +28,7 @@ public class TspClient
 
             var sw = new Stopwatch();
             sw.Start();
-            var result = Receiver.RunTsp(tspInput);
+            var result = RunTsp(tspInput);
             sw.Stop();
             int proccesTime = Convert.ToInt32(sw.ElapsedMilliseconds);
 
@@ -44,5 +44,10 @@ public class TspClient
 
         Console.WriteLine(" Press [enter] to exit.");
         Console.ReadLine();
+    }
+
+    private static TspOutput RunTsp(TspInput tspInput)
+    {
+        return new Genetic(tspInput).Run();
     }
 }
