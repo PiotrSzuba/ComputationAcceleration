@@ -11,7 +11,7 @@ public class TspServer
 {
     private Sender<TspInput> Sender { get; set; }
     private Receiver<TspOutput> Receiver { get; set; }
-
+    private Stopwatch Stopwatch { get; set; }
     private int ReceivedMessagesCount = 0;
 
     public bool isRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
@@ -20,10 +20,14 @@ public class TspServer
     {
         Sender = new Sender<TspInput>();
         Receiver = new Receiver<TspOutput>();
+        Stopwatch = new();
     }
 
     public void Run()
     {
+        Stopwatch = new();
+        Stopwatch.Start();
+
         var tspFileReader = new TspFileReader("gr96.tsp");
         var input = new TspInput { Matrix = tspFileReader.ImMatrix };
         var consumersCount = Sender.GetReceiversCount();
@@ -52,9 +56,8 @@ public class TspServer
     private void OnReceive(object? sender, BasicDeliverEventArgs eventArgs)
     {
         var tspOutput = Receiver.DeserializeInput(eventArgs);
+
         Console.WriteLine($" [x] Received cost: {tspOutput.Cost}, Received so far: {ReceivedMessagesCount + 1}");
-
-
 
         Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
         ReceivedMessagesCount++;
@@ -62,7 +65,10 @@ public class TspServer
         if (ReceivedMessagesCount == 2)
         {
             Receiver.Channel.Close();
-            Console.WriteLine("Task completed closing server connection");
+            Stopwatch.Stop();
+            int proccesTime = Convert.ToInt32(Stopwatch.ElapsedMilliseconds);
+
+            Console.WriteLine($"Task completed in {proccesTime} ms");
         }
 
 

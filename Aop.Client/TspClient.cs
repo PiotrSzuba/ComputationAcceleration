@@ -31,6 +31,7 @@ public class TspClient
     private void OnReceived(object? sender, BasicDeliverEventArgs eventArgs)
     {
         var tspInput = Receiver.DeserializeInput(eventArgs);
+
         Console.WriteLine($" [x] Received matrix of len: {tspInput.Matrix.Length}");
 
         var sw = new Stopwatch();
