@@ -38,7 +38,6 @@ public class Sender<T>
                              routingKey: typeof(T).Name,
                              basicProperties: properties,
                              body: body);
-        Console.WriteLine(" [x] Sent message");
     }
 
     public int GetReceiversCount() => (int)Channel.ConsumerCount(typeof(T).Name);

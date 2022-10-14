@@ -32,8 +32,6 @@ public class TspClient
     {
         var tspInput = Receiver.DeserializeInput(eventArgs);
 
-        Console.WriteLine($" [x] Received matrix of len: {tspInput.Matrix.Length}");
-
         var sw = new Stopwatch();
         sw.Start();
         var result = RunTsp(tspInput);
@@ -49,6 +47,19 @@ public class TspClient
 
     private static TspOutput RunTsp(TspInput tspInput)
     {
-        return new Genetic(tspInput).Run();
+        return tspInput.Algoritm switch
+        {
+            TspAlgoritms.Bruteforce => RunBruteforce(tspInput),
+            TspAlgoritms.Genetic => new Genetic(tspInput).Run(),
+            _ => TspOutput.Error,
+        };
+    }
+
+    private static TspOutput RunBruteforce(TspInput tspInput)
+    {
+        if (tspInput.TspBruteforceInput is null)
+            return TspOutput.Error;
+
+        return Bruteforce.RunSinglePermutation(tspInput.Matrix, tspInput.TspBruteforceInput.Permutation);
     }
 }

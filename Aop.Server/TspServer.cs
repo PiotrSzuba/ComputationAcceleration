@@ -4,6 +4,7 @@ using RabbitMQ.Client;
 using System.Diagnostics;
 using System.Text.Json;
 using RabbitMQ.Client.Events;
+using System.Collections.Immutable;
 
 namespace Aop.Server;
 
@@ -12,9 +13,13 @@ public class TspServer
     private Sender<TspInput> Sender { get; set; }
     private Receiver<TspOutput> Receiver { get; set; }
     private Stopwatch Stopwatch { get; set; }
+    private ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
+    private int ConsumersCount { get; set; } = 0;
+    private int OptimalValue { get; set; }
     private int ReceivedMessagesCount = 0;
+    private int MaxMessagesCount = 0;
 
-    public bool isRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
+    public bool IsRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
 
     public TspServer()
     {
@@ -23,16 +28,15 @@ public class TspServer
         Stopwatch = new();
     }
 
-    public void Run()
+    public void Run(TspAlgoritms tspAlgoritm, TspFileReader tspFileReader)
     {
         Stopwatch = new();
         Stopwatch.Start();
 
-        var tspFileReader = new TspFileReader("gr96.tsp");
-        var input = new TspInput { Matrix = tspFileReader.ImMatrix };
-        var consumersCount = Sender.GetReceiversCount();
+        OptimalValue = tspFileReader.OptimalValue;
+        ConsumersCount = Sender.GetReceiversCount();
 
-        if (!isRunning)
+        if (!IsRunning)
         {
             Receiver.ReconnectToChannel();
         }
@@ -41,10 +45,7 @@ public class TspServer
 
         Console.WriteLine($" [*] Server started amount of hungry consumers: {Sender.GetReceiversCount()}");
 
-        for (int i = 0; i < consumersCount; i++)
-        {
-            Sender.SendMessage(input);
-        }
+        PrepereQueue(tspAlgoritm, tspFileReader);
 
         Receiver.Consumer.Received += OnReceive;
 
@@ -62,16 +63,45 @@ public class TspServer
         Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
         ReceivedMessagesCount++;
 
-        if (ReceivedMessagesCount == 2)
+        if (ReceivedMessagesCount == MaxMessagesCount)
         {
             Receiver.Channel.Close();
             Stopwatch.Stop();
             int proccesTime = Convert.ToInt32(Stopwatch.ElapsedMilliseconds);
 
             Console.WriteLine($"Task completed in {proccesTime} ms");
+            Console.WriteLine($"Target value was {OptimalValue}");
         }
+    }
 
+    private void PrepereQueue(TspAlgoritms tspAlgoritm, TspFileReader tspFileReader)
+    {
+        switch (tspAlgoritm)
+        {
+            case TspAlgoritms.Bruteforce:
+                PrepareQueueForBruteForce(tspAlgoritm, tspFileReader);
+                break;
+        }
+    }
+    
+    private void PrepareQueueForBruteForce(TspAlgoritms tspAlgoritm, TspFileReader tspFileReader)
+    {
+        var permutations = Bruteforce.GetAllCitiesPermutations(tspFileReader.ImMatrix.Length);
 
-        // Sender.SendMessage(new TspInput());
+        MaxMessagesCount = permutations.Count;
+
+        for(int i = 0; i < permutations.Count; i++)
+        {
+            Sender.SendMessage(new TspInput
+            {
+                Algoritm = tspAlgoritm,
+                Matrix = tspFileReader.ImMatrix,
+                TspGeneticInput = null,
+                TspBruteforceInput = new TspBruteforceInput
+                {
+                    Permutation = permutations[i]
+                } 
+            });
+        }
     }
 }

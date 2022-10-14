@@ -1,3 +1,4 @@
+using Aop.RabbitMQ.TSP;
 using Aop.Server;
 using Microsoft.Extensions.FileProviders;
 
@@ -47,9 +48,11 @@ app.MapGet("/allFiles", () =>
 
 app.MapGet("/run", (TspServer tspServer) =>
 {
-    if (tspServer.isRunning) return Results.Problem("Tsp still running");
+    if (tspServer.IsRunning) return Results.Problem("Tsp still running");
 
-    tspServer.Run();
+    var tspFileReader = new TspFileReader("m7.atsp");
+
+    tspServer.Run(TspAlgoritms.Bruteforce, tspFileReader);
 
     return Results.Ok("Tsp started !");
 });
