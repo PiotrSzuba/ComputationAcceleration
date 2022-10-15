@@ -21,7 +21,7 @@ public class TspClient
     public void Run()
     {
 
-        Console.WriteLine(" [*] Waiting for messages.");
+        Console.WriteLine(" [*] Client started");
 
         Receiver.Consumer.Received += OnReceived;
 
@@ -38,7 +38,7 @@ public class TspClient
         sw.Stop();
         int proccesTime = Convert.ToInt32(sw.ElapsedMilliseconds);
 
-        Console.WriteLine($" [x] Done -> Cost: {result.Cost} Time: {proccesTime} ms");
+        // Console.WriteLine($" [x] Done -> Cost: {result.Cost} Time: {proccesTime} ms");
 
         Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
 
@@ -59,7 +59,7 @@ public class TspClient
     {
         if (tspInput.TspBruteforceInput is null)
             return TspOutput.Error;
-
-        return Bruteforce.RunSinglePermutation(tspInput.Matrix, tspInput.TspBruteforceInput.Permutation);
+         
+        return Bruteforce.RunPermutations(tspInput.Matrix, tspInput.TspBruteforceInput.Permutations);
     }
 }

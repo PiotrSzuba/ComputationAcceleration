@@ -21,12 +21,7 @@ public class TspFileReader
 
         if (!allFiles.Contains(filePath))
         {
-            Matrix = new List<List<int>>();
-            OptimalValue = -1;
-            Name = "";
-            ImMatrix = CreateImmutableArray(Matrix);
-            return;
-            //throw new Exception("File doesnt exists");
+            throw new Exception("File doesnt exists");
         }
 
 

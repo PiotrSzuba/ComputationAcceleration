@@ -31,7 +31,7 @@ public class Receiver<T>
                      exclusive: false,
                      autoDelete: false,
                      arguments: null);
-        Channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+        Channel.BasicQos(prefetchSize: 0, prefetchCount: 20, global: false);
         Consumer = new EventingBasicConsumer(Channel);
     }
 
@@ -55,7 +55,7 @@ public class Receiver<T>
                      exclusive: false,
                      autoDelete: false,
                      arguments: null);
-        Channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+        Channel.BasicQos(prefetchSize: 0, prefetchCount: 20, global: false);
         Consumer = new EventingBasicConsumer(Channel);
     }
 

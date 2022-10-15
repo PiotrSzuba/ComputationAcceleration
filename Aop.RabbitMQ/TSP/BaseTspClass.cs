@@ -23,7 +23,7 @@ public class TspInput
 
 public class TspBruteforceInput 
 {
-    public List<int> Permutation { get; set; } = new();
+    public List<List<int>> Permutations { get; set; } = new();
 }
 
 public class TspGeneticInput

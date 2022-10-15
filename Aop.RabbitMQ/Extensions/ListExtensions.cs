@@ -24,13 +24,57 @@ public static class ListExtensions
         }
     }
 
-    public static IEnumerable<IEnumerable<T>> GetPermutations<T>(this IList<T> list, int? length = null)
+    public static List<List<int>> GetPermutations(this IList<int> list)
     {
-        int len = length ?? list.Count ;
-        if (length == 1) return list.Select(item => new T[] { item });
+        var perms = new List<List<int>>();
 
-        return GetPermutations(list, len - 1)
-            .SelectMany(t => list.Where(e => !t.Contains(e)),
-                (item1, item2) => item1.Concat(new T[] { item2 }));
+        var arr = list.ToArray();
+
+        perms.Add(arr.ToList());
+
+        while (NextPermutation(arr))
+        {
+            perms.Add(arr.ToList());
+        }
+
+        return perms;
+    }
+
+    private static bool NextPermutation(int[] numList)
+    {
+        var largestIndex = -1;
+        for (var i = numList.Length - 2; i >= 0; i--)
+        {
+            if (numList[i] < numList[i + 1])
+            {
+                largestIndex = i;
+                break;
+            }
+        }
+
+        if (largestIndex < 0) return false;
+
+        var largestIndex2 = -1;
+        for (var i = numList.Length - 1; i >= 0; i--)
+        {
+            if (numList[largestIndex] < numList[i])
+            {
+                largestIndex2 = i;
+                break;
+            }
+        }
+
+        var tmp = numList[largestIndex];
+        numList[largestIndex] = numList[largestIndex2];
+        numList[largestIndex2] = tmp;
+
+        for (int i = largestIndex + 1, j = numList.Length - 1; i < j; i++, j--)
+        {
+            tmp = numList[i];
+            numList[i] = numList[j];
+            numList[j] = tmp;
+        }
+
+        return true;
     }
 }

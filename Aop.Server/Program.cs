@@ -46,11 +46,11 @@ app.MapGet("/allFiles", () =>
     return Results.Ok(allFiles);
 });
 
-app.MapGet("/run", (TspServer tspServer) =>
+app.MapGet("/run/{fileName}", (TspServer tspServer, string fileName) =>
 {
     if (tspServer.IsRunning) return Results.Problem("Tsp still running");
 
-    var tspFileReader = new TspFileReader("m7.atsp");
+    var tspFileReader = new TspFileReader(fileName);
 
     tspServer.Run(TspAlgoritms.Bruteforce, tspFileReader);
 

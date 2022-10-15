@@ -1,5 +1,6 @@
 ﻿using Aop.RabbitMQ.Extensions;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace Aop.RabbitMQ.TSP;
 
@@ -7,13 +8,18 @@ public class Bruteforce : BaseTspClass
 {
     public Bruteforce(TspInput tspInput) : base(tspInput) 
     {
-        if (tspInput.TspBruteforceInput is null)
-            throw new ArgumentNullException();
+        //if (tspInput.TspBruteforceInput is null)
+            //throw new ArgumentNullException();
     }
 
     public override TspOutput Run()
     {
+        var sw = new Stopwatch();
+        sw.Start();
         var cityIndexesOrders = GetAllCitiesPermutations(Matrix.Length);
+        sw.Stop();
+
+        Console.WriteLine($" Permutations took {sw.ElapsedMilliseconds} ms");
 
         foreach (var cityIndexesOrder in cityIndexesOrders)
         {
@@ -23,23 +29,30 @@ public class Bruteforce : BaseTspClass
         return new (BestPath, Cost);
     }
 
-    public static TspOutput RunSinglePermutation(ImmutableArray<ImmutableArray<int>> matrix, IList<int> permutation)
+    public static TspOutput RunSinglePermutation(ImmutableArray<ImmutableArray<int>> matrix, List<int> permutation)
     {
         return CalculateCostForCityOrder(matrix, permutation.ToArray());
     }
 
-    public TspOutput RunSinglePermutation()
+    public static TspOutput RunPermutations(ImmutableArray<ImmutableArray<int>> matrix, List<List<int>> permutations)
     {
-        if (TspBruteforceInput is null)
-            return TspOutput.Error;
+        var bestTspOutput = new TspOutput(new(), int.MaxValue);
 
-        CalculateCostForCityOrder(TspBruteforceInput.Permutation.ToArray());
+        for (int i = 0; i < permutations.Count; i++)
+        {
+            var test = CalculateCostForCityOrder(matrix, permutations[i].ToArray());
+            if (test.Cost >= bestTspOutput.Cost) continue;
+            bestTspOutput = test;
+        }
 
-        return new(BestPath, Cost);
+        return bestTspOutput;
     }
 
     public static List<List<int>> GetAllCitiesPermutations(int citiesCount)
     {
+        if (citiesCount == 0)
+            return new();
+
         var citiesIndexes = new int[citiesCount - 1];
 
         for (int idx = 0, val = 0; idx < citiesIndexes.Length; val++)
