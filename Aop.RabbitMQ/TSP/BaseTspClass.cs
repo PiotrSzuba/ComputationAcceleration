@@ -15,6 +15,7 @@ public enum TspAlgoritms
 
 public class TspInput
 {
+    public Guid TaskId { get; set; }
     public TspAlgoritms Algoritm { get; set; }
     public ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
     public TspBruteforceInput? TspBruteforceInput { get; set; }
@@ -23,7 +24,7 @@ public class TspInput
 
 public class TspBruteforceInput 
 {
-    public List<List<int>> Permutations { get; set; } = new();
+    public List<int> PermutationIndexes { get; set; } = new();
 }
 
 public class TspGeneticInput

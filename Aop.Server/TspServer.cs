@@ -99,36 +99,42 @@ public class TspServer
     
     private void PrepareQueueForBruteForce(TspFileReader tspFileReader)
     {
+        var citiesInOneMsg = 5040; 
+
         var sw = new Stopwatch();
         sw.Start();
-        var permutations = Bruteforce.GetAllCitiesPermutations(tspFileReader.ImMatrix.Length);
-        sw.Stop();
 
-        Console.WriteLine($" Permutations took {sw.ElapsedMilliseconds} ms");
-        sw.Restart();
-        var chunkedPermutations = permutations
-            .Chunk(5040)//40320 //5040
-            .Select(x => x.ToList())
-            .ToList();
-        sw.Stop();
-        Console.WriteLine($" Chunking took {sw.ElapsedMilliseconds} ms {chunkedPermutations.Count}");
-        MaxMessagesCount = chunkedPermutations.Count;
-        sw.Restart();
+        var possiblePermutations = Enumerable.Range(1, tspFileReader.ImMatrix.Length - 1).Aggregate(1, (p, item) => p * item);
 
-        for (int i = 0; i < chunkedPermutations.Count; i++)
+        var taskId = Guid.NewGuid();
+
+        var messagesCount = possiblePermutations <= citiesInOneMsg ? 1 : possiblePermutations / citiesInOneMsg;
+
+        MaxMessagesCount = messagesCount;
+
+        for (int i = 0; i < messagesCount; i++)
         {
             Sender.SendMessage(new TspInput
             {
+                TaskId = taskId,
                 Algoritm = TspAlgoritms.Bruteforce,
                 Matrix = tspFileReader.ImMatrix,
                 TspGeneticInput = null,
                 TspBruteforceInput = new TspBruteforceInput
                 {
-                    Permutations = chunkedPermutations[i]
+                    PermutationIndexes = GetPermutationIndexes(citiesInOneMsg, possiblePermutations, i),
                 }
             });
         }
         sw.Stop();
         Console.WriteLine($" Sending took {sw.ElapsedMilliseconds} ms");
     }
+
+    private static List<int> GetPermutationIndexes(int citiesInOneMsg, int possiblePermutations, int index)
+    {
+        if (possiblePermutations <= citiesInOneMsg)
+            return Enumerable.Range(0, possiblePermutations).ToList();
+
+        return Enumerable.Range(citiesInOneMsg * index, citiesInOneMsg).ToList();
+    } 
 }

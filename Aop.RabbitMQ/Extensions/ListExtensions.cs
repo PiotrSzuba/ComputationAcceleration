@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -76,5 +77,72 @@ public static class ListExtensions
         }
 
         return true;
+    }
+
+    public static List<List<int>> GetPermutationFast(this IList<int> list)
+    {
+        var values = list.ToArray();
+        List<int[]> result = new();
+        ForAllPermutation(values, (vals) =>
+        {
+            result.Add(vals);
+            return false;
+        });
+
+        return result.Select(x => x.ToList()).ToList();
+    }
+
+    //Fast permutation algorithm by EricOuellet
+    //https://github.com/EricOuellet2
+    private static bool ForAllPermutation<T>(T[] items, Func<T[], bool> funcExecuteAndTellIfShouldStop)
+    {
+        int countOfItem = items.Length;
+
+        if (countOfItem <= 1)
+        {
+            return funcExecuteAndTellIfShouldStop(items);
+        }
+
+        var indexes = new int[countOfItem];
+
+        if (funcExecuteAndTellIfShouldStop(items))
+        {
+            return true;
+        }
+
+        for (int i = 1; i < countOfItem;)
+        {
+            if (indexes[i] < i)
+            {
+                if ((i & 1) == 1)
+                {
+                    Swap(ref items[i], ref items[indexes[i]]);
+                }
+                else
+                {
+                    Swap(ref items[i], ref items[0]);
+                }
+
+                if (funcExecuteAndTellIfShouldStop(items))
+                {
+                    return true;
+                }
+
+                indexes[i]++;
+                i = 1;
+            }
+            else
+            {
+                indexes[i++] = 0;
+            }
+        }
+
+        return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void Swap<T>(ref T a, ref T b)
+    {
+        (b, a) = (a, b);
     }
 }

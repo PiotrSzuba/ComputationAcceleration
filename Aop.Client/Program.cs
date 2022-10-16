@@ -1,9 +1,10 @@
 ﻿using Aop.Client;
+using Aop.RabbitMQ.Extensions;
 using Aop.RabbitMQ.TSP;
 using System.Diagnostics;
 
-var tspClient = new TspClient();
-//tspClient.Run();
+//var tspClient = new TspClient();
+//tspClient.Run()
 
 RunNativeBruteforce();
 

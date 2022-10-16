@@ -34,15 +34,15 @@ public class Bruteforce : BaseTspClass
         return CalculateCostForCityOrder(matrix, permutation.ToArray());
     }
 
-    public static TspOutput RunPermutations(ImmutableArray<ImmutableArray<int>> matrix, List<List<int>> permutations)
+    public static TspOutput RunPermutations(ImmutableArray<ImmutableArray<int>> matrix, List<List<int>> permutations, List<int> permutationIndexes)
     {
         var bestTspOutput = new TspOutput(new(), int.MaxValue);
 
-        for (int i = 0; i < permutations.Count; i++)
+        for (int i = 0; i < permutationIndexes.Count; i++)
         {
-            var test = CalculateCostForCityOrder(matrix, permutations[i].ToArray());
-            if (test.Cost >= bestTspOutput.Cost) continue;
-            bestTspOutput = test;
+            var output = CalculateCostForCityOrder(matrix, permutations[permutationIndexes[i]].ToArray());
+            if (output.Cost >= bestTspOutput.Cost) continue;
+            bestTspOutput = output;
         }
 
         return bestTspOutput;
@@ -62,7 +62,7 @@ public class Bruteforce : BaseTspClass
             idx++;
         }
      
-        var cityIndexesOrders = citiesIndexes.GetPermutations();
+        var cityIndexesOrders = citiesIndexes.GetPermutationFast();
 
         if (cityIndexesOrders == null)
             throw new Exception($"{nameof(cityIndexesOrders)} is somehow null");
