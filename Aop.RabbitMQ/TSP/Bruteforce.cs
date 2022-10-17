@@ -14,12 +14,12 @@ public class Bruteforce
         var bestTspOutput = new TspOutput(new(), int.MaxValue);
         var citiesIndexes = GetCities(tspInput);
 
-        var perms = new PermutationMixOuelletSaniSinghHuttunen(
+        var permutationGenerator = new PermutationMixOuelletSaniSinghHuttunen(
             citiesIndexes, 
             tspInput.TspBruteforceInput.FirstPermutationIndex, 
             tspInput.TspBruteforceInput.LastPermutationIndex);
 
-        perms.ExecuteForEachPermutation((permutation) =>
+        permutationGenerator.ExecuteForEachPermutation((permutation) =>
         {
             var output = CalculateCostForCityOrder(tspInput.Matrix, permutation);
             if (output.Cost < bestTspOutput.Cost)
