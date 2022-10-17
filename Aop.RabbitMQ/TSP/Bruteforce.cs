@@ -1,75 +1,34 @@
 ﻿using Aop.RabbitMQ.Extensions;
+using Aop.RabbitMQ.Permutations;
 using System.Collections.Immutable;
 using System.Diagnostics;
 
 namespace Aop.RabbitMQ.TSP;
 
-public class Bruteforce : BaseTspClass
+public class Bruteforce
 {
-    public Bruteforce(TspInput tspInput) : base(tspInput) 
-    {
-        //if (tspInput.TspBruteforceInput is null)
-            //throw new ArgumentNullException();
-    }
+    private static int StartCityIndex = 0;
 
-    public override TspOutput Run()
-    {
-        var sw = new Stopwatch();
-        sw.Start();
-        var cityIndexesOrders = GetAllCitiesPermutations(Matrix.Length);
-        sw.Stop();
-
-        Console.WriteLine($" Permutations took {sw.ElapsedMilliseconds} ms");
-
-        foreach (var cityIndexesOrder in cityIndexesOrders)
-        {
-            CalculateCostForCityOrder(cityIndexesOrder.ToArray());
-        }
-
-        return new (BestPath, Cost);
-    }
-
-    public static TspOutput RunSinglePermutation(ImmutableArray<ImmutableArray<int>> matrix, List<int> permutation)
-    {
-        return CalculateCostForCityOrder(matrix, permutation.ToArray());
-    }
-
-    public static TspOutput RunPermutations(ImmutableArray<ImmutableArray<int>> matrix, List<List<int>> permutations, List<int> permutationIndexes)
+    public static TspOutput Run(TspInput tspInput)
     {
         var bestTspOutput = new TspOutput(new(), int.MaxValue);
+        var citiesIndexes = GetCities(tspInput);
 
-        for (int i = 0; i < permutationIndexes.Count; i++)
+        var perms = new PermutationMixOuelletSaniSinghHuttunen(
+            citiesIndexes, 
+            tspInput.TspBruteforceInput.FirstPermutationIndex, 
+            tspInput.TspBruteforceInput.LastPermutationIndex);
+
+        perms.ExecuteForEachPermutation((permutation) =>
         {
-            var output = CalculateCostForCityOrder(matrix, permutations[permutationIndexes[i]].ToArray());
-            if (output.Cost >= bestTspOutput.Cost) continue;
-            bestTspOutput = output;
-        }
+            var output = CalculateCostForCityOrder(tspInput.Matrix, permutation);
+            if (output.Cost < bestTspOutput.Cost)
+            {
+                bestTspOutput = output;
+            }
+        });
 
         return bestTspOutput;
-    }
-
-    public static List<List<int>> GetAllCitiesPermutations(int citiesCount)
-    {
-        if (citiesCount == 0)
-            return new();
-
-        var citiesIndexes = new int[citiesCount - 1];
-
-        for (int idx = 0, val = 0; idx < citiesIndexes.Length; val++)
-        {
-            if (val == StartCityIndex) continue;
-            citiesIndexes[idx] = val;
-            idx++;
-        }
-     
-        var cityIndexesOrders = citiesIndexes.GetPermutationFast();
-
-        if (cityIndexesOrders == null)
-            throw new Exception($"{nameof(cityIndexesOrders)} is somehow null");
-
-        return cityIndexesOrders
-            .Select(x => x.ToList())
-            .ToList();
     }
 
     private static TspOutput CalculateCostForCityOrder(ImmutableArray<ImmutableArray<int>> matrix, int[] cityOrder)
@@ -94,27 +53,17 @@ public class Bruteforce : BaseTspClass
         return new TspOutput(path, cost);
     }
 
-    private void CalculateCostForCityOrder(int[] cityOrder)
+    private static int[] GetCities(TspInput tspInput)
     {
-        var path = new List<int>
-        {
-            StartCityIndex
-        };
-        int currentCost = 0;
-        int currentCityIndex = StartCityIndex;
+        var citiesIndexes = new int[tspInput.Matrix.Length - 1];
 
-        for (int i = 0; i < cityOrder.Length; i++)
+        for (int idx = 0, val = 0; idx < citiesIndexes.Length; val++)
         {
-            currentCost += Matrix[currentCityIndex][cityOrder[i]];
-            currentCityIndex = cityOrder[i];
-            path.Add(cityOrder[i]);
+            if (val == StartCityIndex) continue;
+            citiesIndexes[idx] = val;
+            idx++;
         }
 
-        currentCost += Matrix[currentCityIndex][StartCityIndex];
-
-        if (Cost <= currentCost) return;
-
-        Cost = currentCost;
-        BestPath = path;
+        return citiesIndexes;
     }
 }

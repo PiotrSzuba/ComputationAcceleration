@@ -1,9 +1,14 @@
 ﻿using Aop.RabbitMQ.Extensions;
+using System.Collections.Immutable;
 
 namespace Aop.RabbitMQ.TSP;
 
-public class Genetic : BaseTspClass
+public class Genetic
 {
+    private ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
+    private int Cost { get; set; } = 0;
+    private List<int> BestPath { get; set; } = new();
+
     private readonly double _mutationProbability = 0.05d;
     private readonly double _crossoverProbability = 0.8d;
     private int _populationSize { get; set; }
@@ -12,12 +17,13 @@ public class Genetic : BaseTspClass
     private List<List<int>> _population = new();
     private readonly Random _rnd = new();
 
-    public Genetic(TspInput tspInput) : base(tspInput) 
+    public Genetic(TspInput tspInput)
     {
-        _populationSize = Matrix.Length * 50;
+        Matrix = tspInput.Matrix;
+        _populationSize = tspInput.Matrix.Length * 50;
     }
 
-    public override TspOutput Run()
+    public TspOutput Run()
     {
         GeneratePopulation();
 

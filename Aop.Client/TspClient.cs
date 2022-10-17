@@ -12,7 +12,6 @@ public class TspClient
     private Sender<TspOutput> Sender { get; set; }
     private Receiver<TspInput> Receiver { get; set; }
     private Guid TaskId { get; set; }
-    private List<List<int>> Permutations { get; set; } = new();
 
     public TspClient()
     {
@@ -31,57 +30,36 @@ public class TspClient
 
     private void OnReceived(object? sender, BasicDeliverEventArgs eventArgs)
     {
+        var sw = new Stopwatch();
+        sw.Start();
         var tspInput = Receiver.DeserializeInput(eventArgs);
 
         if (TaskId != tspInput.TaskId)
             PrepareForNewTask(tspInput);
 
-        var sw = new Stopwatch();
-        sw.Start();
         var result = RunTsp(tspInput);
-        sw.Stop();
-        int proccesTime = Convert.ToInt32(sw.ElapsedMilliseconds);
 
-        Console.WriteLine($" [x] Done -> Cost: {result.Cost} Time: {proccesTime} ms");
+        sw.Stop();
+
+        Console.WriteLine($" [x] Done -> Cost: {result.Cost} Time: {sw.ElapsedMilliseconds} ms");
 
         Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
 
         Sender.SendMessage(result);
     }
 
-    private TspOutput RunTsp(TspInput tspInput)
+    private static TspOutput RunTsp(TspInput tspInput)
     {
         return tspInput.Algoritm switch
         {
-            TspAlgoritms.Bruteforce => RunBruteforce(tspInput),
+            TspAlgoritms.Bruteforce => Bruteforce.Run(tspInput),
             TspAlgoritms.Genetic => new Genetic(tspInput).Run(),
             _ => TspOutput.Error,
         };
     }
 
-    private TspOutput RunBruteforce(TspInput tspInput)
-    {
-        if (tspInput.TspBruteforceInput is null)
-            return TspOutput.Error;
-
-        if (Permutations.Count == 0)
-            return TspOutput.Error;
-
-        return Bruteforce.RunPermutations(tspInput.Matrix, Permutations, tspInput.TspBruteforceInput.PermutationIndexes);
-    }
-
     private void PrepareForNewTask(TspInput tspInput)
     {
         TaskId = tspInput.TaskId;
-        Permutations = new();
-
-        switch (tspInput.Algoritm)
-        {
-            case TspAlgoritms.Bruteforce:
-                Permutations = Bruteforce.GetAllCitiesPermutations(tspInput.Matrix.Length);
-            break;
-            default:
-                throw new Exception("This algorithm is not supported");
-        }
     }
 }

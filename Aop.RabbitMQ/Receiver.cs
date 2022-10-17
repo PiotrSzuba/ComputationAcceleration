@@ -14,6 +14,7 @@ namespace Aop.RabbitMQ;
 
 public class Receiver<T>
 {
+    public const int PrefetchCount = 10;
     private ConnectionFactory Factory { get; set; }
     private IConnection Connection { get; set; }
     public IModel Channel { get; set; }
@@ -31,7 +32,7 @@ public class Receiver<T>
                      exclusive: false,
                      autoDelete: false,
                      arguments: null);
-        Channel.BasicQos(prefetchSize: 0, prefetchCount: 20, global: false);
+        Channel.BasicQos(prefetchSize: 0, prefetchCount: PrefetchCount, global: false);
         Consumer = new EventingBasicConsumer(Channel);
     }
 
@@ -55,7 +56,7 @@ public class Receiver<T>
                      exclusive: false,
                      autoDelete: false,
                      arguments: null);
-        Channel.BasicQos(prefetchSize: 0, prefetchCount: 20, global: false);
+        Channel.BasicQos(prefetchSize: 0, prefetchCount: PrefetchCount, global: false);
         Consumer = new EventingBasicConsumer(Channel);
     }
 

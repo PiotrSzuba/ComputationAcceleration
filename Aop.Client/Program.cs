@@ -3,17 +3,19 @@ using Aop.RabbitMQ.Extensions;
 using Aop.RabbitMQ.TSP;
 using System.Diagnostics;
 
-//var tspClient = new TspClient();
-//tspClient.Run()
+Console.WriteLine("Client started");
 
-RunNativeBruteforce();
+var tspClient = new TspClient();
+tspClient.Run();
 
-Console.WriteLine(" Press [enter] to exit.");
+//RunNativeBruteforce();
+
+Console.WriteLine("Press [enter] to exit.");
 Console.ReadLine();
 
 void RunNativeBruteforce()
 {
-    var tspFileReader = new TspFileReader("m12.atsp");
+    var tspFileReader = new TspFileReader("m13.atsp");
     var tspInput = new TspInput
     {
         Matrix = tspFileReader.ImMatrix,
@@ -21,8 +23,7 @@ void RunNativeBruteforce()
 
     var sw = new Stopwatch();
     sw.Start();
-    var bf = new Bruteforce(tspInput);
-    var result = bf.Run();
+    var result = Bruteforce.Run(tspInput);
     sw.Stop();
 
     Console.WriteLine($"{result.Cost} opt: {tspFileReader.OptimalValue} {sw.ElapsedMilliseconds} ms");

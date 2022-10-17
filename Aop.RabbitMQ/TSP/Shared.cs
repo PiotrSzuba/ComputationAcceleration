@@ -18,13 +18,14 @@ public class TspInput
     public Guid TaskId { get; set; }
     public TspAlgoritms Algoritm { get; set; }
     public ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
-    public TspBruteforceInput? TspBruteforceInput { get; set; }
+    public TspBruteforceInput TspBruteforceInput { get; set; } = new();
     public TspGeneticInput? TspGeneticInput { get; set; }
 }
 
-public class TspBruteforceInput 
+public class TspBruteforceInput
 {
-    public List<int> PermutationIndexes { get; set; } = new();
+    public int FirstPermutationIndex { get; set; } = -1;
+    public int LastPermutationIndex { get; set; } = -1;
 }
 
 public class TspGeneticInput
@@ -44,25 +45,4 @@ public class TspOutput
     }
 
     public static TspOutput Error => new (new(), -1);
-}
-
-public abstract class BaseTspClass
-{
-    protected ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
-    public int Cost { get; set; }
-    public List<int> BestPath { get; set; }
-    public TspBruteforceInput? TspBruteforceInput { get; set; }
-    public TspGeneticInput? TspGeneticInput { get; set; }
-    public const int StartCityIndex = 0;
-
-    public BaseTspClass(TspInput tspInput)
-    {
-        Matrix = tspInput.Matrix;
-        Cost = int.MaxValue;
-        BestPath = new();
-        TspBruteforceInput = tspInput.TspBruteforceInput;
-        TspGeneticInput = tspInput.TspGeneticInput;
-    }
-
-    public abstract TspOutput Run();
 }

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using RabbitMQ.Client.Events;
 using System.Collections.Immutable;
+using Aop.RabbitMQ.Permutations;
 
 namespace Aop.Server;
 
@@ -47,7 +48,7 @@ public class TspServer
 
         Receiver.ClearQueue();
 
-        Console.WriteLine($" [*] Server started amount of hungry consumers: {Sender.GetReceiversCount()}");
+        Console.WriteLine($" [*] Server started! Amount of hungry consumers: {Sender.GetReceiversCount()}");
 
         Receiver.Consumer.Received += OnReceive;
 
@@ -56,8 +57,6 @@ public class TspServer
         ReceivedMessagesCount = 0;
 
         PrepereQueue(tspAlgoritm, tspFileReader);
-
-        Console.WriteLine("queue full");
     }
 
     private void OnReceive(object? sender, BasicDeliverEventArgs eventArgs)
@@ -81,9 +80,12 @@ public class TspServer
             Stopwatch.Stop();
             int proccesTime = Convert.ToInt32(Stopwatch.ElapsedMilliseconds);
 
-            Console.WriteLine($"Task completed in {proccesTime} ms");
-            Console.WriteLine($"Calculated cost: {Cost}");
-            Console.WriteLine($"Target value was {OptimalValue}");
+            Console.WriteLine($"\n [-] Task completed!");
+            Console.WriteLine($" [-] Total messages received {ReceivedMessagesCount}");
+            Console.WriteLine($" [-] Task completed in {proccesTime} ms");
+            Console.WriteLine($" [-] Average time for message to complete: {ConsumersCount * proccesTime / ReceivedMessagesCount} ms");
+            Console.WriteLine($" [-] Calculated cost: {Cost}");
+            Console.WriteLine($" [-] Target value was {OptimalValue}\n");
         }
     }
 
@@ -99,16 +101,15 @@ public class TspServer
     
     private void PrepareQueueForBruteForce(TspFileReader tspFileReader)
     {
-        var citiesInOneMsg = 5040; 
+        int permsPerMsg = (int)Factorial.GetFactorial(10);
 
-        var sw = new Stopwatch();
-        sw.Start();
-
-        var possiblePermutations = Enumerable.Range(1, tspFileReader.ImMatrix.Length - 1).Aggregate(1, (p, item) => p * item);
+        var possiblePermutations = Enumerable
+            .Range(1, tspFileReader.ImMatrix.Length - 1)
+            .Aggregate(1, (p, item) => p * item);
 
         var taskId = Guid.NewGuid();
 
-        var messagesCount = possiblePermutations <= citiesInOneMsg ? 1 : possiblePermutations / citiesInOneMsg;
+        var messagesCount = possiblePermutations <= permsPerMsg ? 1 : possiblePermutations / permsPerMsg;
 
         MaxMessagesCount = messagesCount;
 
@@ -122,19 +123,16 @@ public class TspServer
                 TspGeneticInput = null,
                 TspBruteforceInput = new TspBruteforceInput
                 {
-                    PermutationIndexes = GetPermutationIndexes(citiesInOneMsg, possiblePermutations, i),
+                    FirstPermutationIndex = GetFirstPermutationIndex(permsPerMsg, possiblePermutations, i),
+                    LastPermutationIndex = GetLastPermutationIndex(permsPerMsg, possiblePermutations, i),
                 }
             });
         }
-        sw.Stop();
-        Console.WriteLine($" Sending took {sw.ElapsedMilliseconds} ms");
     }
 
-    private static List<int> GetPermutationIndexes(int citiesInOneMsg, int possiblePermutations, int index)
-    {
-        if (possiblePermutations <= citiesInOneMsg)
-            return Enumerable.Range(0, possiblePermutations).ToList();
+    private int GetFirstPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
+        => possiblePermutations <= permsPerMsg ? 0 : permsPerMsg * index;
 
-        return Enumerable.Range(citiesInOneMsg * index, citiesInOneMsg).ToList();
-    } 
+    private int GetLastPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
+        => possiblePermutations <= permsPerMsg ? possiblePermutations - 1 : (permsPerMsg * (index + 1)) - 1;
 }
