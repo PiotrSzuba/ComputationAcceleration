@@ -25,7 +25,7 @@ public class TspClient
 
         Receiver.Consumer.Received += OnReceived;
 
-        Receiver.Channel.BasicConsume(queue: Receiver.QueueName,autoAck: false,consumer: Receiver.Consumer);
+        Receiver.Channel.BasicConsume(queue: Receiver.QueueName, autoAck: false, consumer: Receiver.Consumer);
     }
 
     private void OnReceived(object? sender, BasicDeliverEventArgs eventArgs)

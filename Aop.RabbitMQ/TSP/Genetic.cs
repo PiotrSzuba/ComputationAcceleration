@@ -1,12 +1,13 @@
 ﻿using Aop.RabbitMQ.Extensions;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace Aop.RabbitMQ.TSP;
 
 public class Genetic
 {
     private ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
-    private int Cost { get; set; } = 0;
+    private int Cost { get; set; } = int.MaxValue;
     private List<int> BestPath { get; set; } = new();
 
     private readonly double _mutationProbability = 0.05d;
@@ -16,29 +17,63 @@ public class Genetic
     private List<(int cost, List<int> path)> _costsAndPaths { get; set; } = new();
     private List<List<int>> _population = new();
     private readonly Random _rnd = new();
+    private Func<bool> StopCondition { get; set; }
 
     public Genetic(TspInput tspInput)
     {
         Matrix = tspInput.Matrix;
         _populationSize = tspInput.Matrix.Length * 50;
+        StopCondition = () => _noImprove <= Matrix.Length / 2;
     }
 
     public TspOutput Run()
     {
-        GeneratePopulation();
+        var sw = new Stopwatch();
+        sw.Start();
 
-        while (_noImprove <= Matrix.Length / 2)
+        GeneratePopulation(GenerateIndividual());
+
+        var count = 0;
+
+        while (StopCondition())
         {
+            sw.Restart();
             Selection();
             Crossover();
             Mutation();
             SaveBestPopulation();
+            sw.Stop();
+            Console.WriteLine($"{sw.ElapsedMilliseconds}ms count: {count}");
+            count++;
         }
 
         return new(BestPath, Cost);
     }
 
-    private void GeneratePopulation()
+    public TspOutput Run(TspInput tspInput)
+    {
+        //todo 
+        //1. remove and replace population with cost and path
+        //2. saving cost is needed for sorting
+        var individual = tspInput.TspGeneticInput.Individual.Count == 0 ? 
+            GenerateIndividual() : 
+            tspInput.TspGeneticInput.Individual;
+
+        StopCondition = tspInput.TspGeneticInput.MaxIterations.HasValue ? 
+            () => _noImprove <= tspInput.TspGeneticInput.MaxIterations : 
+            () => _noImprove <= Matrix.Length / 2;
+
+        GeneratePopulation(individual);
+
+        Selection();
+        Crossover();
+        Mutation();
+        SaveBestPopulation();
+
+        return new(BestPath, Cost);
+    }
+
+    private List<int> GenerateIndividual()
     {
         var individual = new List<int>();
 
@@ -47,7 +82,15 @@ public class Genetic
             individual.Add(i);
         }
 
-        for (int i = 0; i < _populationSize; i++)
+        return individual.AsRandom().ToList();
+    }
+
+    private void GeneratePopulation(List<int> individual)
+    {
+        _population.Add(individual);
+        _costsAndPaths.Add((CalculateCost(individual), individual));
+
+        for (int i = 0; i < _populationSize - 1; i++)
         {
             individual = individual.AsRandom().ToList();
             _population.Add(individual);
@@ -58,6 +101,7 @@ public class Genetic
     private void Selection()
     {
         _costsAndPaths = _costsAndPaths.OrderBy(costAndPath => costAndPath.cost).ToList();
+
         if (_costsAndPaths.Count - _populationSize != 0)
         {
             _costsAndPaths.RemoveRange(_populationSize, _costsAndPaths.Count - _populationSize);
@@ -161,11 +205,10 @@ public class Genetic
     {
         var bestPopulation = new List<int>();
         int currentCost = int.MaxValue;
-        int tempCost = 0;
 
         for (int i = 0; i < _population.Count; i++)
         {
-            tempCost = CalculateCost(_population[i]);
+            int tempCost = CalculateCost(_population[i]);
             _costsAndPaths.Add((tempCost, _population[i]));
 
             if (currentCost <= tempCost) continue;
@@ -182,7 +225,7 @@ public class Genetic
 
         BestPath = bestPopulation;
         BestPath.Add(BestPath[0]);
-        // Console.WriteLine($"Old cost: {Cost} New cost: {currentCost}");
+        //Console.WriteLine($"New best cost found: {currentCost}");
         Cost = currentCost;
         _noImprove = 0;
     }

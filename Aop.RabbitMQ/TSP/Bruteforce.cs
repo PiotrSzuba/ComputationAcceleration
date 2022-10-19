@@ -7,7 +7,7 @@ namespace Aop.RabbitMQ.TSP;
 
 public class Bruteforce
 {
-    private static int StartCityIndex = 0;
+    private static readonly int StartCityIndex = 0;
 
     public static TspOutput Run(TspInput tspInput)
     {

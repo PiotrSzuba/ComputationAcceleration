@@ -19,7 +19,7 @@ public class TspInput
     public TspAlgoritms Algoritm { get; set; }
     public ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
     public TspBruteforceInput TspBruteforceInput { get; set; } = new();
-    public TspGeneticInput? TspGeneticInput { get; set; }
+    public TspGeneticInput TspGeneticInput { get; set; } = new();
 }
 
 public class TspBruteforceInput
@@ -30,7 +30,8 @@ public class TspBruteforceInput
 
 public class TspGeneticInput
 {
-    public List<int> Population { get; set; } = new();
+    public List<int> Individual { get; set; } = new();
+    public int? MaxIterations { get; set; }
 }
 
 public class TspOutput

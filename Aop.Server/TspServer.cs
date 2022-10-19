@@ -14,13 +14,13 @@ public class TspServer
     private Sender<TspInput> Sender { get; set; }
     private Receiver<TspOutput> Receiver { get; set; }
     private Stopwatch Stopwatch { get; set; }
-    private ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
     private int ConsumersCount { get; set; } = 0;
     private int Cost { get; set; }
     private List<int> Path { get; set; }
     private int OptimalValue { get; set; }
     private int ReceivedMessagesCount = 0;
     private int MaxMessagesCount = 0;
+    private int TimeTaken = 0;
 
     public bool IsRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
 
@@ -48,45 +48,86 @@ public class TspServer
 
         Receiver.ClearQueue();
 
+        ReceivedMessagesCount = 0;
+
         Console.WriteLine($" [*] Server started! Amount of hungry consumers: {Sender.GetReceiversCount()}");
 
-        Receiver.Consumer.Received += OnReceive;
+        Receiver.Consumer.Received += (object? sender, BasicDeliverEventArgs eventArgs) 
+            => OnReceive(sender, eventArgs, tspAlgoritm);
 
         Receiver.Channel.BasicConsume(queue: Receiver.QueueName,autoAck: false,consumer: Receiver.Consumer);
-
-        ReceivedMessagesCount = 0;
 
         PrepereQueue(tspAlgoritm, tspFileReader);
     }
 
-    private void OnReceive(object? sender, BasicDeliverEventArgs eventArgs)
+    private void OnReceive(object? sender, BasicDeliverEventArgs eventArgs, TspAlgoritms tspAlgoritm)
     {
         var tspOutput = Receiver.DeserializeInput(eventArgs);
 
-        if (tspOutput.Cost < Cost)
+        CheckForBetterSolution(tspOutput);
+
+        ResponseToSendersMessage(eventArgs, tspAlgoritm);
+
+        CheckForStop(tspAlgoritm);
+    }
+
+    private void CheckForBetterSolution(TspOutput tspOutput)
+    {
+        if (tspOutput.Cost >= Cost) return;
+
+        Cost = tspOutput.Cost;
+        Path = tspOutput.BestPath;
+        Console.WriteLine($" [x] Received cost: {tspOutput.Cost}, Received so far: {ReceivedMessagesCount + 1}");
+    }
+
+    private void ResponseToSendersMessage(BasicDeliverEventArgs eventArgs, TspAlgoritms tspAlgoritm)
+    {
+        switch (tspAlgoritm)
         {
-            Cost = tspOutput.Cost;
-            Path = tspOutput.BestPath;
-            Console.WriteLine($" [x] Received cost: {tspOutput.Cost}, Received so far: {ReceivedMessagesCount + 1}");
+            case TspAlgoritms.Bruteforce:
+                Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+                ReceivedMessagesCount++;
+                break;
+            case TspAlgoritms.Genetic:
+                break;
         }
+    }
 
-        Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
-        ReceivedMessagesCount++;
-
-        if (ReceivedMessagesCount == MaxMessagesCount)
+    private void CheckForStop(TspAlgoritms tspAlgoritm)
+    {
+        switch (tspAlgoritm)
         {
-            Receiver.ClearQueue();
-            Receiver.Channel.Close();
-            Stopwatch.Stop();
-            int proccesTime = Convert.ToInt32(Stopwatch.ElapsedMilliseconds);
-
-            Console.WriteLine($"\n [-] Task completed!");
-            Console.WriteLine($" [-] Total messages received {ReceivedMessagesCount}");
-            Console.WriteLine($" [-] Task completed in {proccesTime} ms");
-            Console.WriteLine($" [-] Average time for message to complete: {ConsumersCount * proccesTime / ReceivedMessagesCount} ms");
-            Console.WriteLine($" [-] Calculated cost: {Cost}");
-            Console.WriteLine($" [-] Target value was {OptimalValue}\n");
+            case TspAlgoritms.Bruteforce:
+                BruteforceStop();
+                break;
+            case TspAlgoritms.Genetic:
+                GeneticStop();
+                break;
         }
+    }
+
+    private void BruteforceStop()
+    {
+        if (ReceivedMessagesCount != MaxMessagesCount) return;
+
+        StopExecution();
+
+        PrintResult();
+    }
+
+    private void GeneticStop()
+    {
+        StopExecution();
+    }
+
+    private void PrintResult()
+    {
+        Console.WriteLine($"\n [-] Task completed!");
+        Console.WriteLine($" [-] Total messages received {ReceivedMessagesCount}");
+        Console.WriteLine($" [-] Task completed in {TimeTaken} ms");
+        Console.WriteLine($" [-] Average time for message to complete: {ConsumersCount * TimeTaken / ReceivedMessagesCount} ms");
+        Console.WriteLine($" [-] Calculated cost: {Cost}");
+        Console.WriteLine($" [-] Target value was {OptimalValue}\n");
     }
 
     private void PrepereQueue(TspAlgoritms tspAlgoritm, TspFileReader tspFileReader)
@@ -98,7 +139,7 @@ public class TspServer
                 break;
         }
     }
-    
+
     private void PrepareQueueForBruteForce(TspFileReader tspFileReader)
     {
         int permsPerMsg = (int)Factorial.GetFactorial(10);
@@ -120,7 +161,6 @@ public class TspServer
                 TaskId = taskId,
                 Algoritm = TspAlgoritms.Bruteforce,
                 Matrix = tspFileReader.ImMatrix,
-                TspGeneticInput = null,
                 TspBruteforceInput = new TspBruteforceInput
                 {
                     FirstPermutationIndex = GetFirstPermutationIndex(permsPerMsg, possiblePermutations, i),
@@ -130,9 +170,22 @@ public class TspServer
         }
     }
 
-    private int GetFirstPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
+    private static int GetFirstPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
         => possiblePermutations <= permsPerMsg ? 0 : permsPerMsg * index;
 
-    private int GetLastPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
+    private static int GetLastPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
         => possiblePermutations <= permsPerMsg ? possiblePermutations - 1 : (permsPerMsg * (index + 1)) - 1;
+
+    private void PrepareQueueForGenetic()
+    {
+
+    }
+
+    private void StopExecution()
+    {
+        Receiver.ClearQueue();
+        Receiver.Channel.Close();
+        Stopwatch.Stop();
+        TimeTaken = Convert.ToInt32(Stopwatch.ElapsedMilliseconds);
+    }
 }
