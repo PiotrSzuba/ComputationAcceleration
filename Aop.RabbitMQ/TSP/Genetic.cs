@@ -9,13 +9,12 @@ public class Genetic
     private ImmutableArray<ImmutableArray<int>> Matrix { get; set; }
     private int Cost { get; set; } = int.MaxValue;
     private List<int> BestPath { get; set; } = new();
+    private List<Individual> Population { get; set; } = new();
 
     private readonly double _mutationProbability = 0.05d;
     private readonly double _crossoverProbability = 0.8d;
     private int _populationSize { get; set; }
     private int _noImprove = 0;
-    private List<(int cost, List<int> path)> _costsAndPaths { get; set; } = new();
-    private List<List<int>> _population = new();
     private readonly Random _rnd = new();
     private Func<bool> StopCondition { get; set; }
 
@@ -34,7 +33,7 @@ public class Genetic
         GeneratePopulation(GenerateIndividual());
 
         var count = 0;
-
+        //https://localhost:7251/Run/native/Genetic/gr120.tsp
         while (StopCondition())
         {
             sw.Restart();
@@ -52,12 +51,9 @@ public class Genetic
 
     public TspOutput Run(TspInput tspInput)
     {
-        //todo 
-        //1. remove and replace population with cost and path
-        //2. saving cost is needed for sorting
         var individual = tspInput.TspGeneticInput.Individual.Count == 0 ? 
             GenerateIndividual() : 
-            tspInput.TspGeneticInput.Individual;
+            tspInput.TspGeneticInput.Individual.ToArray();
 
         StopCondition = tspInput.TspGeneticInput.MaxIterations.HasValue ? 
             () => _noImprove <= tspInput.TspGeneticInput.MaxIterations : 
@@ -73,7 +69,7 @@ public class Genetic
         return new(BestPath, Cost);
     }
 
-    private List<int> GenerateIndividual()
+    private int[] GenerateIndividual()
     {
         var individual = new List<int>();
 
@@ -82,65 +78,58 @@ public class Genetic
             individual.Add(i);
         }
 
-        return individual.AsRandom().ToList();
+        return individual.AsRandom().ToArray();
     }
 
-    private void GeneratePopulation(List<int> individual)
+    private void GeneratePopulation(int[] individual)
     {
-        _population.Add(individual);
-        _costsAndPaths.Add((CalculateCost(individual), individual));
+        Population.Add(Individual.Create(individual));
+        Population[^1].CalculateCost(Matrix);
 
         for (int i = 0; i < _populationSize - 1; i++)
         {
-            individual = individual.AsRandom().ToList();
-            _population.Add(individual);
-            _costsAndPaths.Add((CalculateCost(_population[i]), _population[i]));
+            individual = individual.AsRandom().ToArray();
+            Population.Add(Individual.Create(individual));
+            Population[^1].CalculateCost(Matrix);
         }
     }
 
     private void Selection()
     {
-        _costsAndPaths = _costsAndPaths.OrderBy(costAndPath => costAndPath.cost).ToList();
+        Population = Population.OrderBy(i => i.Cost).ToList();
 
-        if (_costsAndPaths.Count - _populationSize != 0)
-        {
-            _costsAndPaths.RemoveRange(_populationSize, _costsAndPaths.Count - _populationSize);
-            _population.RemoveRange(_populationSize, _population.Count - _populationSize);
-        }
+        if (Population.Count - _populationSize <= 0) return;
 
-        for (int i = 0; i < _populationSize; i++)
-        {
-            _population[i] = _costsAndPaths[i].path;
-        }
+        Population.RemoveRange(_populationSize, Population.Count - _populationSize);
     }
 
     private void Crossover()
     {
-        int size = (int)(_population.Count * _crossoverProbability);
+        int size = (int)(Population.Count * _crossoverProbability);
         for (int i = 0; i < size; i++)
         {
             int second;
 
             do
             {
-                second = _rnd.Next(_population.Count);
+                second = _rnd.Next(Population.Count);
             } while (i == second && i > second);
 
-            OrderedCrossover(_population[i], _population[second]);
+            OrderedCrossover(Population[i].Path, Population[second].Path);
         }
     }
 
-    private void OrderedCrossover(List<int> parent1, List<int> parent2)
+    private void OrderedCrossover(int[] parent1, int[] parent2)
     {
         var child1 = new int[Matrix.Length];
         var child2 = new int[Matrix.Length];
 
-        var parent1Vals = new bool[parent1.Count];
-        var parent2Vals = new bool[parent2.Count];
+        var parent1Vals = new bool[parent1.Length];
+        var parent2Vals = new bool[parent2.Length];
 
         int start = -1;
         int end = -1;
-        int size = parent1.Count;
+        int size = parent1.Length;
 
         GetTwoRandomPoints(ref start, ref end);
 
@@ -181,66 +170,51 @@ public class Genetic
             }
         }
 
-        _population.Add(child1.ToList());
-        _population.Add(child2.ToList());
+        Population.Add(Individual.Create(child1));
+        Population.Add(Individual.Create(child2));
     }
 
     private void Mutation()
     {
-        for (var i = 0; i < _population.Count; i++)
+        for (var i = 0; i < Population.Count; i++)
         {
             double probability = _rnd.NextDouble();
 
-            if (probability < _mutationProbability)
-            {
-                int start = -1;
-                int end = -1;
-                GetTwoRandomPoints(ref start, ref end);
-                _population[i].Reverse(start, end - start);
-            }
+            if (probability >= _mutationProbability) continue;
+
+            int start = -1;
+            int end = -1;
+            GetTwoRandomPoints(ref start, ref end);
+            Array.Reverse(Population[i].Path, start, end - start);
         }
     }
 
     public void SaveBestPopulation()
     {
-        var bestPopulation = new List<int>();
-        int currentCost = int.MaxValue;
+        var currentBestPath = new List<int>();
+        int currentBestCost = int.MaxValue;
 
-        for (int i = 0; i < _population.Count; i++)
+        for (int i = 0; i < Population.Count; i++)
         {
-            int tempCost = CalculateCost(_population[i]);
-            _costsAndPaths.Add((tempCost, _population[i]));
+            Population[i].CalculateCost(Matrix);
 
-            if (currentCost <= tempCost) continue;
+            if (currentBestCost <= Population[i].Cost) continue;
 
-            currentCost = tempCost;
-            bestPopulation = new(_population[i]);
+            currentBestCost = Population[i].Cost;
+            currentBestPath = new(Population[i].Path);
         }
 
-        if (Cost <= currentCost)
+        if (Cost <= currentBestCost)
         {
             _noImprove++;
             return;
         }
 
-        BestPath = bestPopulation;
-        BestPath.Add(BestPath[0]);
+        BestPath = currentBestPath;
+        BestPath.Add(currentBestPath[0]);
         //Console.WriteLine($"New best cost found: {currentCost}");
-        Cost = currentCost;
+        Cost = currentBestCost;
         _noImprove = 0;
-    }
-
-    private int CalculateCost(List<int> path)
-    {
-        int cost = 0;
-        for (int i = 0; i < path.Count - 1; ++i)
-        {
-            cost += Matrix[path[i]][path[i + 1]];
-        }
-
-        cost += Matrix[path[Matrix.Length - 1]][path[0]];
-
-        return cost;
     }
 
     private void GetTwoRandomPoints(ref int start, ref int end)
@@ -254,4 +228,32 @@ public class Genetic
         if (end < start) 
             (start, end) = (end, start);
     }
+
+    private class Individual
+    {
+        public int[] Path { get; set; }
+        public int Cost { get; set; } = -1;
+
+        private Individual(int[] path)
+        {
+            Path = path;
+        }
+
+        public static Individual Create(int[] path)
+        {
+            return new Individual(path);
+        }
+
+        public void CalculateCost(ImmutableArray<ImmutableArray<int>> matrix)
+        {
+            Cost = 0;
+            for (int i = 0; i < Path.Length - 1; i++)
+            {
+                Cost += matrix[Path[i]][Path[i + 1]];
+            }
+
+            Cost += matrix[Path[matrix.Length - 1]][Path[0]];
+        }
+    }
 }
+

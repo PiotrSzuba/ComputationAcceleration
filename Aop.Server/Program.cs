@@ -91,13 +91,13 @@ app.MapGet("/run/native/{algoritm}/{fileName}", (TspAlgoritms algoritm, string f
     });
 });
 
-app.MapGet("/run/{fileName}", (TspServer tspServer, string fileName) =>
+app.MapGet("/run/{algoritm}/{fileName}", (TspServer tspServer, TspAlgoritms algoritm, string fileName) =>
 {
     if (tspServer.IsRunning) return Results.Problem("Tsp still running");
 
     var tspFileReader = new TspFileReader(fileName);
 
-    tspServer.Run(TspAlgoritms.Bruteforce, tspFileReader);
+    tspServer.Run(algoritm, tspFileReader);
 
     return Results.Ok("Tsp started !");
 });
