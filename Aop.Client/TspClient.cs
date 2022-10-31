@@ -12,6 +12,7 @@ public class TspClient
     private Sender<TspOutput> Sender { get; set; }
     private Receiver<TspInput> Receiver { get; set; }
     private Guid TaskId { get; set; }
+    private Genetic? Genetic { get; set; } = null;
 
     public TspClient()
     {
@@ -37,29 +38,52 @@ public class TspClient
         if (TaskId != tspInput.TaskId)
             PrepareForNewTask(tspInput);
 
-        var result = RunTsp(tspInput);
+        if (Genetic is null)
+            Console.WriteLine("genetic is null");
 
+        var result = RunTsp(tspInput);
         sw.Stop();
 
         Console.WriteLine($" [x] Done -> Cost: {result.Cost} Time: {sw.ElapsedMilliseconds} ms");
 
-        Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+        RespondToMessage(eventArgs, tspInput.Algoritm);
 
         Sender.SendMessage(result);
     }
 
-    private static TspOutput RunTsp(TspInput tspInput)
+    private TspOutput RunTsp(TspInput tspInput)
     {
         return tspInput.Algoritm switch
         {
             TspAlgoritms.Bruteforce => Bruteforce.Run(tspInput),
-            TspAlgoritms.Genetic => new Genetic(tspInput).Run(),
-            _ => TspOutput.Error,
+            TspAlgoritms.Genetic => Genetic is null ? TspOutput.Error : Genetic.Run(tspInput),
+                _ => TspOutput.Error,
         };
+    }
+
+    private void RespondToMessage(BasicDeliverEventArgs eventArgs, TspAlgoritms tspAlgoritm)
+    {
+        switch (tspAlgoritm)
+        {
+            case TspAlgoritms.Bruteforce:
+                Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+                break;
+            case TspAlgoritms.Genetic:
+                Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+                break;
+        }
     }
 
     private void PrepareForNewTask(TspInput tspInput)
     {
         TaskId = tspInput.TaskId;
+        switch (tspInput.Algoritm)
+        {
+            case TspAlgoritms.Bruteforce:
+                break;
+            case TspAlgoritms.Genetic:
+                Genetic = new Genetic(tspInput);
+                break;
+        }
     }
 }

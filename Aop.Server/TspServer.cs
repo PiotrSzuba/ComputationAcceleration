@@ -20,7 +20,11 @@ public class TspServer
     private int OptimalValue { get; set; }
     private int ReceivedMessagesCount = 0;
     private int MaxMessagesCount = 0;
+    private int NoImprove = 0;
     private int TimeTaken = 0;
+    private int CitiesCount = 0;
+    private Guid TaskId;
+    private ImmutableArray<ImmutableArray<int>> Matrix;
 
     public bool IsRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
 
@@ -39,7 +43,10 @@ public class TspServer
         Cost = int.MaxValue;
         Path = new();
         OptimalValue = tspFileReader.OptimalValue;
+        CitiesCount = tspFileReader.ImMatrix.Length;
         ConsumersCount = Sender.GetReceiversCount();
+        NoImprove = 0;
+        Matrix = tspFileReader.ImMatrix;
 
         if (!IsRunning)
         {
@@ -73,8 +80,18 @@ public class TspServer
 
     private void CheckForBetterSolution(TspOutput tspOutput)
     {
-        if (tspOutput.Cost >= Cost) return;
+        if (tspOutput.Cost >= Cost)
+        {
+            if (tspOutput.NoImproveRuns.HasValue)
+            {
+                NoImprove += tspOutput.NoImproveRuns.Value;
+                return;
+            }
+            NoImprove++;
+            return;
+        }
 
+        NoImprove = 0;
         Cost = tspOutput.Cost;
         Path = tspOutput.BestPath;
         Console.WriteLine($" [x] Received cost: {tspOutput.Cost}, Received so far: {ReceivedMessagesCount + 1}");
@@ -85,12 +102,22 @@ public class TspServer
         switch (tspAlgoritm)
         {
             case TspAlgoritms.Bruteforce:
-                Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
-                ReceivedMessagesCount++;
                 break;
             case TspAlgoritms.Genetic:
+                Sender.SendMessage(new TspInput
+                {
+                    TaskId = TaskId,
+                    Algoritm = TspAlgoritms.Genetic,
+                    Matrix = Matrix,
+                    TspGeneticInput = new TspGeneticInput
+                    {
+                        Individual = Path,
+                    }
+                });
                 break;
         }
+        Receiver.Channel.BasicAck(deliveryTag: eventArgs.DeliveryTag, multiple: false);
+        ReceivedMessagesCount++;
     }
 
     private void CheckForStop(TspAlgoritms tspAlgoritm)
@@ -117,8 +144,11 @@ public class TspServer
 
     private void GeneticStop()
     {
+        if (NoImprove < CitiesCount) return;
         StopExecution();
+        PrintResult();
     }
+
 
     private void PrintResult()
     {
@@ -137,6 +167,9 @@ public class TspServer
             case TspAlgoritms.Bruteforce:
                 PrepareQueueForBruteForce(tspFileReader);
                 break;
+            case TspAlgoritms.Genetic:
+                PrepareQueueForGenetic(tspFileReader);
+                break;
         }
     }
 
@@ -148,7 +181,7 @@ public class TspServer
             .Range(1, tspFileReader.ImMatrix.Length - 1)
             .Aggregate(1, (p, item) => p * item);
 
-        var taskId = Guid.NewGuid();
+        TaskId = Guid.NewGuid();
 
         var messagesCount = possiblePermutations <= permsPerMsg ? 1 : possiblePermutations / permsPerMsg;
 
@@ -158,7 +191,7 @@ public class TspServer
         {
             Sender.SendMessage(new TspInput
             {
-                TaskId = taskId,
+                TaskId = TaskId,
                 Algoritm = TspAlgoritms.Bruteforce,
                 Matrix = tspFileReader.ImMatrix,
                 TspBruteforceInput = new TspBruteforceInput
@@ -176,9 +209,29 @@ public class TspServer
     private static int GetLastPermutationIndex(int permsPerMsg, int possiblePermutations, int index)
         => possiblePermutations <= permsPerMsg ? possiblePermutations - 1 : (permsPerMsg * (index + 1)) - 1;
 
-    private void PrepareQueueForGenetic()
+    private void PrepareQueueForGenetic(TspFileReader tspFileReader)
     {
+        var individual = new List<int>();
 
+        for (int i = 0; i < tspFileReader.ImMatrix.Length; i++)
+        {
+            individual.Add(i);
+        }
+
+        TaskId = Guid.NewGuid();
+        for(int i = 0; i < ConsumersCount; i++)
+        {
+            Sender.SendMessage(new TspInput
+            {
+                TaskId = TaskId,
+                Algoritm = TspAlgoritms.Genetic,
+                Matrix = tspFileReader.ImMatrix,
+                TspGeneticInput = new TspGeneticInput
+                {
+                    Individual = individual,
+                }
+            });
+        }
     }
 
     private void StopExecution()

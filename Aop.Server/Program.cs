@@ -16,6 +16,7 @@ var fileProvider = new PhysicalFileProvider(Path.Combine(builder.Environment.Con
 var requestPath = "/instances/list";
 
 var app = builder.Build();
+app.Urls.Add("https://0.0.0.0:7251");
 
 if (app.Environment.IsDevelopment())
 {
@@ -38,9 +39,7 @@ app.UseDirectoryBrowser(new DirectoryBrowserOptions
 });
 
 app.MapGet("/", (IEnumerable<EndpointDataSource> endpointSources) =>
-{
-    return string.Join("\n", endpointSources.SelectMany(source => source.Endpoints));
-});
+    string.Join("\n", endpointSources.SelectMany(source => source.Endpoints)));
 
 app.MapGet("/allFiles", () =>
 {

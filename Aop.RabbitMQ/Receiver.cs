@@ -24,7 +24,7 @@ public class Receiver<T>
 
     public Receiver()
     {
-        Factory = new ConnectionFactory() { HostName = "localhost" };
+        Factory = new ConnectionFactory() { HostName = "127.0.0.1" };
         Connection = Factory.CreateConnection();
         Channel = Connection.CreateModel();
         Channel.QueueDeclare(queue: QueueName,

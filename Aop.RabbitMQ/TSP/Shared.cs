@@ -38,6 +38,9 @@ public class TspOutput
 {
     public List<int> BestPath { get; set; } = new();
     public int Cost { get; set; }
+    public int? NoImproveRuns { get; set; }
+
+    public TspOutput() { }
 
     public TspOutput(List<int> bestPath, int cost)
     {

@@ -11,8 +11,8 @@ public class Genetic
     private List<int> BestPath { get; set; } = new();
     private List<Individual> Population { get; set; } = new();
 
-    private readonly double _mutationProbability = 0.05d;
-    private readonly double _crossoverProbability = 0.8d;
+    private const double _mutationProbability = 0.05d;
+    private const double _crossoverProbability = 0.8d;
     private int _populationSize { get; set; }
     private int _noImprove = 0;
     private readonly Random _rnd = new();
@@ -33,7 +33,9 @@ public class Genetic
         GeneratePopulation(GenerateIndividual());
 
         var count = 0;
-        //https://localhost:7251/Run/native/Genetic/gr120.tsp
+        // TODO memory leak fix in crossover prolly removeRange doesnt work as intended
+        //     https://localhost:7251/Run/native/Genetic/gr120.tsp
+
         while (StopCondition())
         {
             sw.Restart();
@@ -42,31 +44,44 @@ public class Genetic
             Mutation();
             SaveBestPopulation();
             sw.Stop();
-            Console.WriteLine($"{sw.ElapsedMilliseconds}ms count: {count}");
+            //Console.WriteLine($"{sw.ElapsedMilliseconds}ms count: {count}");
             count++;
         }
+
+        Population.Clear();
 
         return new(BestPath, Cost);
     }
 
     public TspOutput Run(TspInput tspInput)
     {
-        var individual = tspInput.TspGeneticInput.Individual.Count == 0 ? 
-            GenerateIndividual() : 
-            tspInput.TspGeneticInput.Individual.ToArray();
+        if (Population.Count == 0)
+        {
+            var individual = tspInput.TspGeneticInput.Individual.Count == 0 
+                ? GenerateIndividual() 
+                : tspInput.TspGeneticInput.Individual.ToArray();
+            GeneratePopulation(individual);
+        }
 
-        StopCondition = tspInput.TspGeneticInput.MaxIterations.HasValue ? 
-            () => _noImprove <= tspInput.TspGeneticInput.MaxIterations : 
-            () => _noImprove <= Matrix.Length / 2;
+        var sw = new Stopwatch();
+        sw.Start();
+    
+        while (sw.ElapsedMilliseconds <= 4000)
+        {
+            Selection(tspInput);
+            Crossover();
+            Mutation();
+            SaveBestPopulation();
+        }
+        sw.Stop();
+        Console.WriteLine($"While: {sw.ElapsedMilliseconds} {_noImprove}");
 
-        GeneratePopulation(individual);
-
-        Selection();
-        Crossover();
-        Mutation();
-        SaveBestPopulation();
-
-        return new(BestPath, Cost);
+        return new TspOutput
+        {
+            BestPath = BestPath,
+            Cost = Cost,
+            NoImproveRuns = _noImprove,
+        };
     }
 
     private int[] GenerateIndividual()
@@ -83,6 +98,11 @@ public class Genetic
 
     private void GeneratePopulation(int[] individual)
     {
+        if (individual.Length - 1 == Matrix.Length)
+        {
+            individual = individual.SkipLast(1).ToArray();
+        }
+
         Population.Add(Individual.Create(individual));
         Population[^1].CalculateCost(Matrix);
 
@@ -103,8 +123,31 @@ public class Genetic
         Population.RemoveRange(_populationSize, Population.Count - _populationSize);
     }
 
+    private void Selection(TspInput tspInput)
+    {
+        if (tspInput.TspGeneticInput.Individual.Count - 1 == Matrix.Length)
+        {
+            Population.Add(Individual.Create(tspInput.TspGeneticInput.Individual.SkipLast(1).ToArray()));
+            Population[^1].CalculateCost(Matrix);
+        }
+        else
+        {
+            Population.Add(Individual.Create(tspInput.TspGeneticInput.Individual.ToArray()));
+            Population[^1].CalculateCost(Matrix);
+        }
+
+
+        Population = Population.OrderBy(i => i.Cost).ToList();
+
+
+        if (Population.Count - _populationSize <= 0) return;
+
+        Population.RemoveRange(_populationSize, Population.Count - _populationSize);
+    }
+
     private void Crossover()
     {
+        // Console.WriteLine($"Before Cross: {Process.GetCurrentProcess().PrivateMemorySize64}");
         int size = (int)(Population.Count * _crossoverProbability);
         for (int i = 0; i < size; i++)
         {
@@ -212,7 +255,6 @@ public class Genetic
 
         BestPath = currentBestPath;
         BestPath.Add(currentBestPath[0]);
-        //Console.WriteLine($"New best cost found: {currentCost}");
         Cost = currentBestCost;
         _noImprove = 0;
     }
@@ -225,8 +267,7 @@ public class Genetic
             end = _rnd.Next(Matrix.Length);
         } while (start == end);
 
-        if (end < start) 
-            (start, end) = (end, start);
+        if (end < start) (start, end) = (end, start);
     }
 
     private class Individual
