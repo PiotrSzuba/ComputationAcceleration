@@ -21,7 +21,7 @@ public class Genetic
     public Genetic(TspInput tspInput)
     {
         Matrix = tspInput.Matrix;
-        _populationSize = tspInput.Matrix.Length * 50;
+        _populationSize = tspInput.Matrix.Length * 100;
         StopCondition = () => _noImprove <= Matrix.Length / 2;
     }
 
@@ -32,23 +32,18 @@ public class Genetic
 
         GeneratePopulation(GenerateIndividual());
 
-        var count = 0;
-        // TODO memory leak fix in crossover prolly removeRange doesnt work as intended
-        //     https://localhost:7251/Run/native/Genetic/gr120.tsp
-
         while (StopCondition())
         {
-            sw.Restart();
+            //sw.Restart();
             Selection();
             Crossover();
             Mutation();
             SaveBestPopulation();
-            sw.Stop();
-            //Console.WriteLine($"{sw.ElapsedMilliseconds}ms count: {count}");
-            count++;
+            //sw.Stop();
         }
 
         Population.Clear();
+        sw.Stop();
 
         return new(BestPath, Cost);
     }
@@ -74,7 +69,8 @@ public class Genetic
             SaveBestPopulation();
         }
         sw.Stop();
-        Console.WriteLine($"While: {sw.ElapsedMilliseconds} {_noImprove}");
+        
+        //zwracać Matrix.Count / 10 miast jako migracje
 
         return new TspOutput
         {
@@ -147,7 +143,6 @@ public class Genetic
 
     private void Crossover()
     {
-        // Console.WriteLine($"Before Cross: {Process.GetCurrentProcess().PrivateMemorySize64}");
         int size = (int)(Population.Count * _crossoverProbability);
         for (int i = 0; i < size; i++)
         {
@@ -256,6 +251,7 @@ public class Genetic
         BestPath = currentBestPath;
         BestPath.Add(currentBestPath[0]);
         Cost = currentBestCost;
+        Console.WriteLine($"Found new cost! {Cost}");
         _noImprove = 0;
     }
 

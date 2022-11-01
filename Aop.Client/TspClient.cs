@@ -3,6 +3,7 @@ using Aop.RabbitMQ.TSP;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Diagnostics;
+using System.Collections.Immutable;
 using System.Text.Json;
 
 namespace Aop.Client;
@@ -33,13 +34,17 @@ public class TspClient
     {
         var sw = new Stopwatch();
         sw.Start();
+
         var tspInput = Receiver.DeserializeInput(eventArgs);
 
         if (TaskId != tspInput.TaskId)
             PrepareForNewTask(tspInput);
 
-        if (Genetic is null)
-            Console.WriteLine("genetic is null");
+        if (Genetic is null && tspInput.Algoritm == TspAlgoritms.Genetic)
+        {
+            Console.WriteLine("Cant run this genetic task !");
+            return;
+        }
 
         var result = RunTsp(tspInput);
         sw.Stop();
@@ -82,7 +87,10 @@ public class TspClient
             case TspAlgoritms.Bruteforce:
                 break;
             case TspAlgoritms.Genetic:
-                Genetic = new Genetic(tspInput);
+                if (tspInput.Matrix != ImmutableArray<ImmutableArray<int>>.Empty)
+                {
+                    Genetic = new Genetic(tspInput);
+                }
                 break;
         }
     }

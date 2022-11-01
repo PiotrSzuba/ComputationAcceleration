@@ -6,7 +6,7 @@ using System.Text.Json;
 using RabbitMQ.Client.Events;
 using System.Collections.Immutable;
 using Aop.RabbitMQ.Permutations;
-
+using Aop.RabbitMQ.Extensions;
 namespace Aop.Server;
 
 public class TspServer
@@ -25,6 +25,7 @@ public class TspServer
     private int CitiesCount = 0;
     private Guid TaskId;
     private ImmutableArray<ImmutableArray<int>> Matrix;
+    private readonly ImmutableArray<ImmutableArray<int>> EmptyMatrix = ImmutableArray<ImmutableArray<int>>.Empty;
 
     public bool IsRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
 
@@ -108,7 +109,7 @@ public class TspServer
                 {
                     TaskId = TaskId,
                     Algoritm = TspAlgoritms.Genetic,
-                    Matrix = Matrix,
+                    Matrix = EmptyMatrix,
                     TspGeneticInput = new TspGeneticInput
                     {
                         Individual = Path,
@@ -144,7 +145,7 @@ public class TspServer
 
     private void GeneticStop()
     {
-        if (NoImprove < CitiesCount) return;
+        if (NoImprove <= CitiesCount / 2) return;
         StopExecution();
         PrintResult();
     }
@@ -228,7 +229,7 @@ public class TspServer
                 Matrix = tspFileReader.ImMatrix,
                 TspGeneticInput = new TspGeneticInput
                 {
-                    Individual = individual,
+                    Individual = individual.AsRandom().ToList(),
                 }
             });
         }
