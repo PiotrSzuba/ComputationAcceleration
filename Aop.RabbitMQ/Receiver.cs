@@ -1,13 +1,6 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using System;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using Aop.RabbitMQ.TSP;
-using System.Diagnostics;
 using System.Text.Json;
 
 namespace Aop.RabbitMQ;
@@ -24,7 +17,7 @@ public class Receiver<T>
 
     public Receiver()
     {
-        Factory = new ConnectionFactory() { HostName = "127.0.0.1" };
+        Factory = new ConnectionFactory() { HostName = Config.IP };
         Connection = Factory.CreateConnection();
         Channel = Connection.CreateModel();
         Channel.QueueDeclare(queue: QueueName,

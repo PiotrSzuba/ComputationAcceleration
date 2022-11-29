@@ -21,7 +21,7 @@ public class Genetic
     public Genetic(TspInput tspInput)
     {
         Matrix = tspInput.Matrix;
-        _populationSize = tspInput.Matrix.Length * 100;
+        _populationSize = tspInput.Matrix.Length * (tspInput.TspGeneticInput.PopulationMultiplier ?? 60);
         StopCondition = () => _noImprove <= Matrix.Length / 2;
     }
 
@@ -60,8 +60,11 @@ public class Genetic
 
         var sw = new Stopwatch();
         sw.Start();
-    
-        while (sw.ElapsedMilliseconds <= 4000)
+
+        if (_noImprove > 0)
+            StopCondition = () => sw.ElapsedMilliseconds <= 4000;
+
+        while (StopCondition())
         {
             Selection(tspInput);
             Crossover();
@@ -69,14 +72,16 @@ public class Genetic
             SaveBestPopulation();
         }
         sw.Stop();
-        
-        //zwracać Matrix.Count / 10 miast jako migracje
-
+        Console.WriteLine(_noImprove);
         return new TspOutput
         {
             BestPath = BestPath,
             Cost = Cost,
             NoImproveRuns = _noImprove,
+            Migrants = Population
+                .OrderBy(i => i.Cost)
+                .Take(Matrix.Length * 10)
+                .ToList(),
         };
     }
 
@@ -130,6 +135,15 @@ public class Genetic
         {
             Population.Add(Individual.Create(tspInput.TspGeneticInput.Individual.ToArray()));
             Population[^1].CalculateCost(Matrix);
+        }
+
+        if (tspInput.TspGeneticInput.Migrants is not null)
+        {
+            for(int i = 0; i < tspInput.TspGeneticInput.Migrants.Count; i++)
+            {
+                Population.Add(Individual.Create(tspInput.TspGeneticInput.Individual.SkipLast(1).ToArray()));
+                Population[^1].CalculateCost(Matrix);
+            }
         }
 
 
@@ -251,7 +265,7 @@ public class Genetic
         BestPath = currentBestPath;
         BestPath.Add(currentBestPath[0]);
         Cost = currentBestCost;
-        Console.WriteLine($"Found new cost! {Cost}");
+        // Console.WriteLine($"Found new cost! {Cost}");
         _noImprove = 0;
     }
 
@@ -266,10 +280,12 @@ public class Genetic
         if (end < start) (start, end) = (end, start);
     }
 
-    private class Individual
+    public class Individual
     {
         public int[] Path { get; set; }
         public int Cost { get; set; } = -1;
+
+        public Individual() { }
 
         private Individual(int[] path)
         {

@@ -7,6 +7,9 @@ using RabbitMQ.Client.Events;
 using System.Collections.Immutable;
 using Aop.RabbitMQ.Permutations;
 using Aop.RabbitMQ.Extensions;
+using System.Linq;
+using static Aop.RabbitMQ.TSP.Genetic;
+
 namespace Aop.Server;
 
 public class TspServer
@@ -26,6 +29,7 @@ public class TspServer
     private Guid TaskId;
     private ImmutableArray<ImmutableArray<int>> Matrix;
     private readonly ImmutableArray<ImmutableArray<int>> EmptyMatrix = ImmutableArray<ImmutableArray<int>>.Empty;
+    private List<Individual> Migrants = new();
 
     public bool IsRunning => Receiver.Channel.IsOpen && Receiver.Consumer.IsRunning;
 
@@ -71,9 +75,7 @@ public class TspServer
     private void OnReceive(object? sender, BasicDeliverEventArgs eventArgs, TspAlgoritms tspAlgoritm)
     {
         var tspOutput = Receiver.DeserializeInput(eventArgs);
-
         CheckForBetterSolution(tspOutput);
-
         ResponseToSendersMessage(eventArgs, tspAlgoritm);
 
         CheckForStop(tspAlgoritm);
@@ -92,7 +94,15 @@ public class TspServer
             return;
         }
 
-        NoImprove = 0;
+        if (tspOutput.Migrants is not null)
+        {
+            var size = tspOutput.Migrants.Count;
+            Migrants.AddRange(tspOutput.Migrants);
+            Migrants = Migrants.OrderBy(x => x.Cost).ToList();
+            Migrants.RemoveRange(size, Migrants.Count - size);
+        }
+
+        NoImprove = ConsumersCount == 1 ? tspOutput.NoImproveRuns.Value : 0;
         Cost = tspOutput.Cost;
         Path = tspOutput.BestPath;
         Console.WriteLine($" [x] Received cost: {tspOutput.Cost}, Received so far: {ReceivedMessagesCount + 1}");
@@ -113,6 +123,7 @@ public class TspServer
                     TspGeneticInput = new TspGeneticInput
                     {
                         Individual = Path,
+                        Migrants = Migrants,
                     }
                 });
                 break;
@@ -145,7 +156,7 @@ public class TspServer
 
     private void GeneticStop()
     {
-        if (NoImprove <= CitiesCount / 2) return;
+        if (NoImprove <= (ConsumersCount - 1) * CitiesCount + CitiesCount / 2) return;
         StopExecution();
         PrintResult();
     }
@@ -156,7 +167,7 @@ public class TspServer
         Console.WriteLine($"\n [-] Task completed!");
         Console.WriteLine($" [-] Total messages received {ReceivedMessagesCount}");
         Console.WriteLine($" [-] Task completed in {TimeTaken} ms");
-        Console.WriteLine($" [-] Average time for message to complete: {ConsumersCount * TimeTaken / ReceivedMessagesCount} ms");
+        // Console.WriteLine($" [-] Average time for message to complete: {ConsumersCount * TimeTaken / ReceivedMessagesCount} ms");
         Console.WriteLine($" [-] Calculated cost: {Cost}");
         Console.WriteLine($" [-] Target value was {OptimalValue}\n");
     }
@@ -230,6 +241,7 @@ public class TspServer
                 TspGeneticInput = new TspGeneticInput
                 {
                     Individual = individual.AsRandom().ToList(),
+                    PopulationMultiplier = 60 / ConsumersCount,
                 }
             });
         }

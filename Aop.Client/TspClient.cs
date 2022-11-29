@@ -62,7 +62,7 @@ public class TspClient
         {
             TspAlgoritms.Bruteforce => Bruteforce.Run(tspInput),
             TspAlgoritms.Genetic => Genetic is null ? TspOutput.Error : Genetic.Run(tspInput),
-                _ => TspOutput.Error,
+            _ => TspOutput.Error,
         };
     }
 

@@ -1,10 +1,6 @@
 ﻿using RabbitMQ.Client;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Aop.RabbitMQ;
 
@@ -16,7 +12,7 @@ public class Sender<T>
 
     public Sender()
     {
-        Factory = new ConnectionFactory() { HostName = "127.0.0.1" };
+        Factory = new ConnectionFactory() { HostName = Config.IP };
         Connection = Factory.CreateConnection();
         Channel = Connection.CreateModel();
         Channel.QueueDeclare(queue: typeof(T).Name,

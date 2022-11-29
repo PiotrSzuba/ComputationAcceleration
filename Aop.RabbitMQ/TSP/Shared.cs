@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Aop.RabbitMQ.TSP.Genetic;
 
 namespace Aop.RabbitMQ.TSP;
 
@@ -32,6 +33,8 @@ public class TspGeneticInput
 {
     public List<int> Individual { get; set; } = new();
     public int? MaxIterations { get; set; }
+    public int? PopulationMultiplier { get; set; }
+    public List<Individual>? Migrants { get; set; }
 }
 
 public class TspOutput
@@ -39,6 +42,7 @@ public class TspOutput
     public List<int> BestPath { get; set; } = new();
     public int Cost { get; set; }
     public int? NoImproveRuns { get; set; }
+    public List<Individual>? Migrants { get; set; }
 
     public TspOutput() { }
 
